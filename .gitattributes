@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+*.sh text eol=lf
+server/4ravu-systemd-update text eol=lf
