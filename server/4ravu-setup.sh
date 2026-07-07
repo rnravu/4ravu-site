@@ -36,7 +36,7 @@ BACKUP="/etc/caddy/Caddyfile.bak.$(date +%s)"
 sudo cp "$CADDYFILE" "$BACKUP"
 echo "Backed up $CADDYFILE to $BACKUP"
 
-if grep -q "4ravu.com" "$CADDYFILE" 2>/dev/null; then
+if grep -qE "^4ravu\.com" "$CADDYFILE" 2>/dev/null; then
     echo "4ravu.com already in Caddyfile. Skipping."
 else
     cat << 'EOF' | sudo tee -a "$CADDYFILE" > /dev/null
