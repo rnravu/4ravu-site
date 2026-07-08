@@ -334,6 +334,10 @@ section.alt .card {
   color: var(--color-text-muted);
 }
 
+.product-card .btn {
+  margin: 4px 0 16px;
+}
+
 .product-card .disclaimer {
   font-size: 0.85rem;
   color: var(--color-text-muted);
