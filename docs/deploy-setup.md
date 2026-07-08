@@ -138,3 +138,43 @@ Re-run `ssh-keyscan -H 5.161.206.200` and replace the secret value.
 timestamped backup `4ravu-setup.sh` made
 (`/etc/caddy/Caddyfile.bak.<timestamp>`) and `sudo systemctl reload caddy`,
 then investigate before re-running.
+
+---
+
+## mail.4ravu.com (Roundcube webmail)
+
+Self-hosted [Roundcube](https://roundcube.net/) on the same box, giving a
+single unified inbox across every company domain. It holds no mail itself —
+it's a web UI logging into Purelymail's IMAP/SMTP with one consolidated
+"hub" mailbox (`ops@4ravu.com`). Purelymail routing rules (configured in the
+Purelymail dashboard, not here) funnel every domain's mail into that one
+mailbox; Roundcube's per-mailbox Identities feature is what lets replies go
+out looking like `contact@4ravu.com`, `hello@matchvane.com`, etc.
+
+**One-time setup:**
+
+```bash
+scp server/mail-setup.sh server/mail-update.sh deploy@5.161.206.200:/tmp/
+ssh deploy@5.161.206.200
+sudo bash /tmp/mail-setup.sh <basicauth-user> <basicauth-bcrypt-hash>
+```
+
+The bcrypt hash comes from `caddy hash-password --plaintext '<password>'` —
+generate it fresh, never store the plaintext password in this repo. The
+script is idempotent: creates `/opt/mail-roundcube/{db,config}`, installs
+and enables the `container-mail-roundcube.service` systemd unit (podman,
+port `127.0.0.1:8085`), and appends the `mail.4ravu.com` Caddy block
+(validated before reload, same backup/restore-on-failure behavior as
+`4ravu-setup.sh`). Add `mail.4ravu.com` → `A` → `5.161.206.200` in
+Cloudflare (proxied) for Caddy to obtain its certificate.
+
+**Updating Roundcube to a newer image:**
+
+```bash
+ssh deploy@5.161.206.200 "sudo bash /opt/mail-roundcube/mail-update.sh"
+```
+
+(Copy `mail-update.sh` to the server once, e.g. alongside the deploy
+script, or re-`scp` it each time — it just pulls `roundcube/roundcubemail:latest`
+and restarts the systemd unit. Mail/config state lives on the host volumes,
+so recreating the container is safe.)
