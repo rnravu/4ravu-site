@@ -88,6 +88,31 @@ until curl -sf "http://127.0.0.1:${IDLE_PORT}/" > /dev/null 2>&1; do
 done
 log "Health check passed."
 
+# ── 3a. Hand the idle container off to systemd, while it's still idle ──────
+# This is done *before* the Caddy switch, on purpose: 4ravu-systemd-update
+# restarts the container (via podman's --replace) so systemd actually
+# supervises it and it survives a reboot, instead of just being enabled for
+# next boot. Doing that replace now — while this slot isn't receiving live
+# traffic yet — means the brief restart it causes never affects a real
+# request. Re-check health afterward since the container was just replaced.
+log "Handing $IDLE_NAME to systemd (container-4ravu.service) ..."
+if sudo /usr/local/bin/4ravu-systemd-update "$IDLE_NAME"; then
+    SYSTEMD_DEADLINE=$(( $(date +%s) + 20 ))
+    until curl -sf "http://127.0.0.1:${IDLE_PORT}/" > /dev/null 2>&1; do
+        if [[ $(date +%s) -ge $SYSTEMD_DEADLINE ]]; then
+            log "ERROR: Health check failed after systemd handoff. Rolling back ..."
+            sudo systemctl stop container-4ravu.service 2>/dev/null || true
+            sudo podman stop "$IDLE_NAME" 2>/dev/null || true
+            sudo podman rm   "$IDLE_NAME" 2>/dev/null || true
+            exit 1
+        fi
+        sleep 1
+    done
+    log "systemd handoff verified healthy."
+else
+    log "WARNING: systemd service update failed; deploy will continue on the raw podman container, but restart-on-reboot may still point at the previous slot. Re-run 4ravu-setup.sh on the server."
+fi
+
 # ── 4. Switch Caddy to the new slot (zero-downtime reload) ─────────────────
 log "Switching Caddy upstream to port $IDLE_PORT ..."
 sudo /usr/local/bin/4ravu-caddy-switch "$IDLE_PORT"
@@ -95,14 +120,6 @@ log "Caddy reloaded."
 
 # ── 5. Record the new active slot ──────────────────────────────────────────
 echo "$IDLE_SLOT" > "$ACTIVE_SLOT_FILE"
-
-# ── 5a. Update systemd service so the new slot restarts after reboot ──────
-# Best-effort so a missing helper or stale sudoers rule does not turn a
-# healthy live deploy into a failed CI run.
-log "Updating container-4ravu.service -> $IDLE_NAME ..."
-if ! sudo /usr/local/bin/4ravu-systemd-update "$IDLE_NAME"; then
-    log "WARNING: systemd service update failed; deploy is live, but restart-on-reboot may still point at the previous slot. Re-run 4ravu-setup.sh on the server."
-fi
 
 # ── 6. Remove the old container ────────────────────────────────────────────
 if [[ "$ACTIVE_SLOT" != "none" ]]; then

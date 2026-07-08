@@ -2,10 +2,14 @@
 # 4ravu-systemd-update <container-name>
 #
 # Updates /etc/systemd/system/container-4ravu.service to start whichever
-# container slot is now active (4ravu-blue or 4ravu-green).
+# container slot is now active (4ravu-blue or 4ravu-green), then restarts
+# the unit so systemd actually takes ownership of the container immediately
+# (not just on the next reboot).
 #
-# Called automatically by 4ravu-deploy.sh after each successful deploy.
-# Can also be run manually to repair the systemd unit after a server setup.
+# Called automatically by 4ravu-deploy.sh, on the idle slot, before it's
+# switched into Caddy — so the brief container replace this causes never
+# touches live traffic. Can also be run manually to repair the systemd
+# unit after a server setup.
 #
 # Usage:
 #   sudo /usr/local/bin/4ravu-systemd-update 4ravu-green
@@ -41,4 +45,9 @@ restorecon -v "$SERVICE_FILE" 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable container-4ravu.service
 
-echo "container-4ravu.service updated -> $CONTAINER_NAME"
+# --replace in the generated ExecStart means this swaps the already-running
+# (manually podman-run) container for a systemd-supervised one with the same
+# name/image/ports/volumes — same container identity, now actually tracked.
+systemctl restart container-4ravu.service
+
+echo "container-4ravu.service updated and restarted -> $CONTAINER_NAME"
