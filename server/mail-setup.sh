@@ -37,7 +37,33 @@ sudo mkdir -p "$DATA_DIR/db" "$DATA_DIR/config"
 sudo chown -R deploy:deploy "$DATA_DIR"
 echo "Data directories ready at $DATA_DIR."
 
+# ── 1b. Persist a stable des_key ────────────────────────────────────────────
+# config.inc.php (and its des_key) is regenerated fresh on every container
+# restart -- it isn't on a persisted volume, unlike everything under
+# $DATA_DIR/config, which the entrypoint auto-includes. A random des_key on
+# every restart silently breaks SMTP sending for anyone with an open session:
+# their IMAP password is encrypted in the session under the old key, the new
+# key can't decrypt it, so smtp_pass resolves empty and Roundcube skips AUTH
+# entirely -- Purelymail then rejects the send with "530 Authentication
+# required" instead of a clear login error. Pinning des_key here means it
+# only changes if this file is deleted, so sessions survive restarts/updates.
+DES_KEY_FILE="$DATA_DIR/config/00-des-key.inc.php"
+if [ ! -f "$DES_KEY_FILE" ]; then
+    DES_KEY=$(head -c 32 /dev/urandom | base64 | head -c 24)
+    cat << PHPEOF | sudo tee "$DES_KEY_FILE" > /dev/null
+<?php
+\$config['des_key'] = '${DES_KEY}';
+PHPEOF
+    sudo chown deploy:deploy "$DES_KEY_FILE"
+    echo "Generated and persisted a stable des_key at $DES_KEY_FILE."
+else
+    echo "des_key already persisted at $DES_KEY_FILE. Skipping."
+fi
+
 # ── 2. Systemd unit (podman --replace recreates the container on start) ────
+# SMTP submission uses port 587 (STARTTLS), not 465: Hetzner blocks outbound
+# 25 and 465 by default on this box, confirmed via /dev/tcp probe from the
+# server itself. 587 is open and Purelymail supports STARTTLS on it.
 cat << UNITEOF | sudo tee "$UNIT_FILE" > /dev/null
 [Unit]
 Description=Podman container-mail-roundcube.service
@@ -65,7 +91,7 @@ ExecStart=/usr/bin/podman run \\
 	-e ROUNDCUBEMAIL_DEFAULT_HOST=ssl://imap.purelymail.com \\
 	-e ROUNDCUBEMAIL_DEFAULT_PORT=993 \\
 	-e ROUNDCUBEMAIL_SMTP_SERVER=tls://smtp.purelymail.com \\
-	-e ROUNDCUBEMAIL_SMTP_PORT=465 \\
+	-e ROUNDCUBEMAIL_SMTP_PORT=587 \\
 	-e ROUNDCUBEMAIL_SKIN=elastic docker.io/roundcube/roundcubemail:latest
 ExecStop=/usr/bin/podman stop \\
 	--ignore -t 10 \\
