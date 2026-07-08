@@ -294,6 +294,19 @@ section.alt .card {
   color: var(--color-text-muted);
 }
 
+.badge-client {
+  background: #eaf1f9;
+  color: var(--color-primary-light);
+}
+
+.card-icon {
+  display: block;
+  width: 30px;
+  height: 30px;
+  color: var(--color-accent);
+  margin-bottom: 14px;
+}
+
 /* Product feature card (bigger, on products page) */
 
 .product-card {
@@ -319,6 +332,12 @@ section.alt .card {
 
 .product-card p {
   color: var(--color-text-muted);
+}
+
+.product-card .disclaimer {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
 /* CTA banner */
