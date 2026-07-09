@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="4Ravu L.L.C. logo">
-  <rect width="64" height="64" rx="14" fill="#1c365d"/>
-  <text x="32" y="42" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle">4R</text>
+  <defs>
+    <linearGradient id="fourGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a9bef"/>
+      <stop offset="100%" stop-color="#1c365d"/>
+    </linearGradient>
+  </defs>
+  <text x="0" y="47" font-family="'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" letter-spacing="-4" fill="url(#fourGrad)">4</text>
+  <text x="29" y="47" font-family="'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" fill="#142743">R</text>
 </svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-label="4Ravu L.L.C. logo">
+  <defs>
+    <linearGradient id="fourGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a9bef"/>
+      <stop offset="100%" stop-color="#8fb8e6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#ffffff"/>
+  <text x="6" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="42" font-weight="800" letter-spacing="-3" fill="url(#fourGrad)">4</text>
+  <text x="35" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="42" font-weight="800" fill="#142743">R</text>
+  <line x1="82" y1="12" x2="82" y2="52" stroke="#3f5a80" stroke-width="2"/>
+  <text x="98" y="40" font-family="'Segoe UI', Arial, sans-serif" font-size="30" font-weight="700" fill="#ffffff">4ravu</text>
+  <text x="99" y="55" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="3" fill="#c3cedb">LLC</text>
+</svg>
