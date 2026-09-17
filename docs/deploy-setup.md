@@ -2,11 +2,54 @@
 
 Run this from a machine that already has working `deploy@5.161.206.200` SSH
 access (your laptop, not the desktop that hit `Permission denied`). This is a
-one-time setup; after this, every `git push` to `main` auto-deploys.
+one-time setup; after this, every `git push` to `main` (excluding changes
+confined to `.github/**`) auto-deploys.
 
 app-server = `5.161.206.200`, the same Hetzner box that runs
 woodstoneresearch.com, admin.4ravu.com, pgadmin.4ravu.com, and
-analytics.4ravu.com behind one shared Caddy instance.
+analytics.4ravu.com behind one shared Caddy instance. It's also on the
+tailnet as `app` (Tailscale IP `100.89.205.98`) — see the update below.
+
+---
+
+## Update (2026-09-17): CI now deploys over Tailscale, not the public IP
+
+The GitHub Actions workflow (`deploy.yml`) no longer connects to
+`5.161.206.200` over the public internet. It instead:
+
+1. Connects to the tailnet via the official `tailscale/github-action`, using
+   an OAuth client scoped to `tag:ci-deploy` (App TCP/22 only — see the
+   Tailscale admin console's Access Controls for the exact grant and
+   `tagOwners` entry).
+2. SSHes to App's stable Tailscale IP, `100.89.205.98`, using the *same*
+   dedicated deploy key as before (`SSH_PRIVATE_KEY` — unchanged, still
+   registered in `deploy`'s `~/.ssh/authorized_keys` on App).
+3. Verifies App's host key against a value pinned **inline in the workflow
+   file** (fetched directly from `/etc/ssh/ssh_host_ed25519_key.pub` on App
+   over an already-trusted SSH session, not `ssh-keyscan`), instead of the
+   `SSH_KNOWN_HOSTS` secret.
+
+This was validated first with a separate, harmless one-off pilot
+(`tailscale-ssh-pilot.yml`) using its own dedicated, forced-command-restricted
+key — that pilot key has no access beyond a fixed connectivity check and is
+unrelated to the deploy key.
+
+**Secrets table changes** (see step 7 below for the original list):
+- Added: `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET`
+- No longer used by `deploy.yml`: `SSH_HOST`, `SSH_KNOWN_HOSTS` (left in
+  place for now — still handy for the direct/manual troubleshooting commands
+  elsewhere in this doc, which still go over the public IP)
+- Unchanged: `SSH_USER`, `SSH_PRIVATE_KEY`
+
+**Push trigger scope**: `deploy.yml` now has `paths-ignore: [".github/**"]`
+on its `push` trigger, so editing workflow files alone (like this migration's
+own commit) no longer fires a production deploy. Pushes that touch site
+content still deploy normally. `workflow_dispatch` (manual "Run workflow")
+is unaffected by `paths-ignore` and still runs regardless of what changed.
+
+Public SSH to `5.161.206.200` was **not** disabled and still works for the
+manual commands in this doc (steps 6, 9, and Troubleshooting) — only the
+CI/CD path moved to Tailscale.
 
 ---
 
@@ -130,9 +173,24 @@ and look for `Offering public key` / whether the server accepts or rejects it.
 If nothing local works, use the Hetzner Cloud console (VNC/serial, bypasses
 SSH) to get in and inspect/fix `/home/deploy/.ssh/authorized_keys` directly.
 
-**Workflow fails at the `ssh`/`rsync` step with a host-key error** — the
-`SSH_KNOWN_HOSTS` secret doesn't match what the server actually presents.
-Re-run `ssh-keyscan -H 5.161.206.200` and replace the secret value.
+**Workflow fails at the `ssh`/`rsync` step with a host-key error** — App's
+actual SSH host key no longer matches the value pinned inline in
+`deploy.yml` (e.g. after a server rebuild that regenerated host keys). Fetch
+the current key directly from the server over an already-trusted session —
+don't blindly `ssh-keyscan` a fresh TOFU value — and update the pinned
+`100.89.205.98 ssh-ed25519 ...` line in `deploy.yml`:
+
+```bash
+ssh deploy@5.161.206.200 "cat /etc/ssh/ssh_host_ed25519_key.pub"
+```
+
+Paste the `ssh-ed25519 AAAA...` portion (drop the trailing `root@...`
+comment) into the pinned known_hosts line in the `Set up SSH` step.
+
+**Workflow fails at the `Connect to Tailscale` step** — check that
+`TS_OAUTH_CLIENT_ID` / `TS_OAUTH_CLIENT_SECRET` are current and that the
+OAuth client's tag (`tag:ci-deploy`) still has an Access Controls grant to
+`100.89.205.98` on `tcp:22` in the Tailscale admin console.
 
 **One of the four pre-existing domains breaks after step 5** — restore the
 timestamped backup `4ravu-setup.sh` made
