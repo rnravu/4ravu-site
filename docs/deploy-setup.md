@@ -53,6 +53,48 @@ CI/CD path moved to Tailscale.
 
 ---
 
+## Update (2026-09-18): manual commands, once public SSH is closed
+
+App's public SSH (port 22 on `5.161.206.200`) is being retired for direct
+human/manual use as well, not just CI. Once that happens, every
+`ssh deploy@5.161.206.200` / `scp ... deploy@5.161.206.200:...` command below
+stops working. Replace them with a private-network route through App's
+admin bastion host, Edge (Tailscale IP `100.92.173.48`):
+
+```bash
+ssh -J deploy@100.92.173.48 deploy@10.1.0.3
+```
+
+or, for a `scp`:
+
+```bash
+scp -o ProxyJump=deploy@100.92.173.48 <local-file> deploy@10.1.0.3:<remote-path>
+```
+
+**Do not** connect directly to App's own Tailscale IP (`100.89.205.98`)
+from an arbitrary operator machine — as of this writing that direct path is
+known not to work reliably from a typical admin workstation (confirmed on
+Windows); Edge is the verified bastion. If your machine has Tailscale
+connectivity to Edge (as any operator doing this setup should), the `-J`
+form above works with no other local configuration. To avoid retyping it,
+add to `~/.ssh/config`:
+
+```
+Host edge
+    HostName 100.92.173.48
+    User deploy
+
+Host app-private
+    HostName 10.1.0.3
+    User deploy
+    ProxyJump edge
+```
+
+...then use `ssh app-private` / `scp <file> app-private:<path>` in place of
+every `deploy@5.161.206.200` command below.
+
+---
+
 ## 1. Generate a dedicated SSH keypair for GitHub Actions
 
 Do **not** reuse wood-stone's `gh-actions-deploy` key — a leak in one repo's
