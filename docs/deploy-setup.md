@@ -95,6 +95,24 @@ every `deploy@5.161.206.200` command below.
 
 ---
 
+## Historical: original one-time setup (already completed)
+
+Steps 1–9 below are the **original bootstrap runbook** from when 4ravu.com
+was first set up on app-server. They describe how the current state came to
+exist — they are **not** something to re-run for normal operation, and
+re-running steps 1, 2, 5, or 7 against a live server would generate a
+redundant key/secret or attempt to re-append an already-present Caddyfile
+block (step 5's script is idempotent and safe to re-run if needed, but the
+others are not meant to be repeated casually).
+
+Keep them for reference for scenarios like: the server needs to be rebuilt
+from scratch, the GitHub Actions deploy key is rotated, or a new operator
+needs to understand how the pieces fit together. For how deploys and
+manual/admin access actually work **today**, see the two `Update` sections
+above this one.
+
+---
+
 ## 1. Generate a dedicated SSH keypair for GitHub Actions
 
 Do **not** reuse wood-stone's `gh-actions-deploy` key — a leak in one repo's
